@@ -28,6 +28,7 @@ import androidx.glance.action.Action
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.RadioButton
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.Switch
@@ -59,6 +60,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import com.oppzippy.openscq30.R
 import com.oppzippy.openscq30.features.soundcoredevice.service.ConnectionStatus
 import com.oppzippy.openscq30.features.soundcoredevice.service.DeviceService
@@ -429,7 +431,14 @@ private fun ShowSetting(context: Context, settingId: String, setting: Setting, i
 
         is Setting.ImportStringSetting -> ReadOnlySettingValue(settingId, "")
 
-        is Setting.InformationSetting -> ReadOnlySettingValue(settingId, setting.value)
+        is Setting.InformationSetting -> {
+            val batteryPercent = parseBatteryPercent(settingId, setting.value)
+            if (batteryPercent != null) {
+                BatteryBar(settingId, batteryPercent)
+            } else {
+                ReadOnlySettingValue(settingId, setting.value)
+            }
+        }
 
         is Setting.SelectSetting -> Select(
             context,
@@ -638,6 +647,50 @@ private fun ReadOnlySettingValue(settingId: String, value: String) {
         )
         Spacer(GlanceModifier.width(4.dp))
         Text(modifier = GlanceModifier.defaultWeight(), text = value, style = defaultTextStyle())
+    }
+}
+
+private val batteryFractionRegex = Regex("""^\s*(\d+)\s*/\s*(\d+)\s*$""")
+
+/**
+ * Battery settings arrive as "level/max" (e.g. "3/5", "8/10", "99/100").
+ * Returns 0-100, or null if this isn't a battery setting.
+ */
+private fun parseBatteryPercent(settingId: String, value: String): Int? {
+    if (!settingId.contains("battery", ignoreCase = true)) return null
+    val match = batteryFractionRegex.matchEntire(value) ?: return null
+    val level = match.groupValues[1].toIntOrNull() ?: return null
+    val max = match.groupValues[2].toIntOrNull()?.takeIf { it > 0 } ?: return null
+    return ((level * 100) / max).coerceIn(0, 100)
+}
+
+@Composable
+private fun BatteryBar(settingId: String, percent: Int) {
+    val barColor = when {
+        percent <= 20 -> ColorProvider(Color(0xFFE5484D))
+        percent <= 40 -> ColorProvider(Color(0xFFF5A524))
+        else -> GlanceTheme.colors.primary
+    }
+    Column(GlanceModifier.fillMaxWidth().padding(end = 8.dp)) {
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                modifier = GlanceModifier.defaultWeight(),
+                text = translateSettingId(settingId),
+                style = defaultTextStyle(),
+                maxLines = 1,
+            )
+            Text(
+                text = "$percent%",
+                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold),
+            )
+        }
+        Spacer(GlanceModifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = percent / 100f,
+            modifier = GlanceModifier.fillMaxWidth().height(8.dp).cornerRadius(4.dp),
+            color = barColor,
+            backgroundColor = GlanceTheme.colors.surfaceVariant,
+        )
     }
 }
 
