@@ -9,7 +9,7 @@ import java.io.DataInputStream
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -68,8 +68,10 @@ object FastPairBatteryReader {
     private const val CODE_BATTERY_UPDATED = 0x03
     private const val MAX_MESSAGE_LENGTH = 1024
 
-    private val RETRY_WHILE_BUSY = 30.seconds
-    private val RETRY_AFTER_STREAM_CLOSED = 5.seconds
+    // Each connection attempt makes the earbuds drop whoever currently holds the stream (usually Play Services),
+    // even when our attempt then fails. Retrying often just knocks Play Services off without gaining anything, so
+    // retry rarely. A fresh attempt also happens on every new earbud connection, since this runs per connection.
+    private val RETRY_INTERVAL = 5.minutes
 
     private val _state = MutableStateFlow<FastPairBatteryState>(FastPairBatteryState.Inactive)
     val state: StateFlow<FastPairBatteryState> = _state.asStateFlow()
@@ -124,7 +126,7 @@ object FastPairBatteryReader {
                     if (socket == null) {
                         currentSocket.getAndSet(null)?.closeQuietly()
                         _state.value = FastPairBatteryState.Busy
-                        delay(RETRY_WHILE_BUSY)
+                        delay(RETRY_INTERVAL)
                         continue
                     }
 
@@ -137,7 +139,11 @@ object FastPairBatteryReader {
                     } finally {
                         currentSocket.getAndSet(null)?.closeQuietly()
                     }
-                    if (isActive) delay(RETRY_AFTER_STREAM_CLOSED)
+                    // Usually means another app (Play Services) took the stream over. Don't fight for it.
+                    if (isActive) {
+                        _state.value = FastPairBatteryState.Busy
+                        delay(RETRY_INTERVAL)
+                    }
                 }
             }
         } finally {
