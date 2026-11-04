@@ -42,6 +42,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import com.oppzippy.openscq30.features.fastpair.FastPairBatteryReader
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @AndroidEntryPoint
@@ -88,6 +91,10 @@ class DeviceService : LifecycleService() {
 
     @Inject
     lateinit var featuredSettingSlotDao: FeaturedSettingSlotDao
+
+    /** Mac address of the device we are connecting/connected to, used for the Fast Pair battery reader. */
+    @Volatile
+    private var connectedMacAddress: String? = null
 
     val connectionStatusFlow: MutableStateFlow<ConnectionStatus> =
         MutableStateFlow(ConnectionStatus.AwaitingConnection)
@@ -212,6 +219,7 @@ class DeviceService : LifecycleService() {
         startForeground(NOTIFICATION_ID, notification)
 
         intent?.getStringExtra(INTENT_EXTRA_MAC_ADDRESS)?.let { macAddress ->
+            connectedMacAddress = macAddress
             lifecycleScope.launch {
                 try {
                     val device = session.connectWithBackends(
@@ -263,9 +271,22 @@ class DeviceService : LifecycleService() {
             connectionStatusFlow.collectLatest { connectionStatus ->
                 widget.updateAllConnectionStatus(applicationContext, session, connectionStatus)
                 if (connectionStatus is ConnectionStatus.Connected) {
-                    connectionStatus.deviceManager.watchForChangeNotification.collectLatest {
+                    merge(
+                        connectionStatus.deviceManager.watchForChangeNotification.map { },
+                        FastPairBatteryReader.state.map { },
+                    ).collectLatest {
                         widget.updateAllConnectionStatus(applicationContext, session, connectionStatus)
                     }
+                }
+            }
+        }
+
+        // Exact battery levels from the Google Fast Pair Message Stream, when it isn't held by Play Services
+        lifecycleScope.launch {
+            connectionStatusFlow.collectLatest { connectionStatus ->
+                val macAddress = connectedMacAddress
+                if (connectionStatus is ConnectionStatus.Connected && macAddress != null) {
+                    FastPairBatteryReader.run(applicationContext, macAddress)
                 }
             }
         }

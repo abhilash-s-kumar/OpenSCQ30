@@ -62,6 +62,10 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.oppzippy.openscq30.R
+import com.oppzippy.openscq30.features.fastpair.FastPairBatteryReader
+import com.oppzippy.openscq30.features.fastpair.FastPairBatteryState
+import com.oppzippy.openscq30.features.fastpair.FastPairBatteryValue
+import com.oppzippy.openscq30.features.fastpair.FastPairSettingsActivity
 import com.oppzippy.openscq30.features.soundcoredevice.service.ConnectionStatus
 import com.oppzippy.openscq30.features.soundcoredevice.service.DeviceService
 import com.oppzippy.openscq30.lib.bindings.OpenScq30Session
@@ -95,7 +99,11 @@ sealed class SettingWidgetState {
     data class ConnectedUnconfigured(val deviceName: String) : SettingWidgetState()
 
     @Serializable
-    data class Connected(val deviceName: String, val settings: List<Pair<String, Setting?>>) : SettingWidgetState()
+    data class Connected(
+        val deviceName: String,
+        val settings: List<Pair<String, Setting?>>,
+        val fastPair: FastPairBatteryState = FastPairBatteryState.Inactive,
+    ) : SettingWidgetState()
 }
 
 class SettingWidget : GlanceAppWidget() {
@@ -210,6 +218,7 @@ class SettingWidget : GlanceAppWidget() {
                                         device.setting(settingId),
                                     )
                                 },
+                                fastPair = FastPairBatteryReader.state.value,
                             )
                         }
                     } catch (ex: IllegalStateException) {
@@ -328,6 +337,7 @@ private fun Content(
                     is SettingWidgetState.Connected -> Connected(
                         context = context,
                         settings = state.settings,
+                        fastPair = state.fastPair,
                         isCompactLayout = isCompactLayout,
                     )
                 }
@@ -392,22 +402,37 @@ private fun ConnectedUnconfigured(context: Context) {
 }
 
 @Composable
-private fun Connected(context: Context, settings: List<Pair<String, Setting?>>, isCompactLayout: Boolean) {
+private fun Connected(
+    context: Context,
+    settings: List<Pair<String, Setting?>>,
+    fastPair: FastPairBatteryState,
+    isCompactLayout: Boolean,
+) {
+    val showsBattery = settings.any { (id, setting) -> setting != null && id.contains("battery", ignoreCase = true) }
     LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
+        if (showsBattery && fastPair is FastPairBatteryState.Busy) {
+            item { FastPairBusyBanner(context) }
+        }
         items(settings.filter { it.second != null }) { (settingId, setting) ->
             Box(
                 modifier = GlanceModifier.let {
                     if (!isCompactLayout) it.padding(bottom = 6.dp) else it
                 },
             ) {
-                ShowSetting(context, settingId, setting!!, isCompactLayout)
+                ShowSetting(context, settingId, setting!!, fastPair, isCompactLayout)
             }
         }
     }
 }
 
 @Composable
-private fun ShowSetting(context: Context, settingId: String, setting: Setting, isCompactLayout: Boolean) {
+private fun ShowSetting(
+    context: Context,
+    settingId: String,
+    setting: Setting,
+    fastPair: FastPairBatteryState,
+    isCompactLayout: Boolean,
+) {
     when (setting) {
         is Setting.Action -> {
             Button(
@@ -432,9 +457,12 @@ private fun ShowSetting(context: Context, settingId: String, setting: Setting, i
         is Setting.ImportStringSetting -> ReadOnlySettingValue(settingId, "")
 
         is Setting.InformationSetting -> {
+            val exact = exactBatteryFor(settingId, fastPair)
             val batteryPercent = parseBatteryPercent(settingId, setting.value)
-            if (batteryPercent != null) {
-                BatteryBar(settingId, batteryPercent)
+            if (exact != null) {
+                BatteryBar(settingId, exact.percent, isExact = true, isCharging = exact.isCharging)
+            } else if (batteryPercent != null) {
+                BatteryBar(settingId, batteryPercent, isExact = false, isCharging = false)
             } else {
                 ReadOnlySettingValue(settingId, setting.value)
             }
@@ -664,8 +692,49 @@ private fun parseBatteryPercent(settingId: String, value: String): Int? {
     return ((level * 100) / max).coerceIn(0, 100)
 }
 
+/** Maps an OpenSCQ30 battery setting to the matching exact value from the Fast Pair Message Stream, if any. */
+private fun exactBatteryFor(settingId: String, fastPair: FastPairBatteryState): FastPairBatteryValue? {
+    val battery = (fastPair as? FastPairBatteryState.Active)?.battery ?: return null
+    return when (settingId) {
+        "batteryLevelLeft" -> battery.left
+        "batteryLevelRight" -> battery.right
+        "caseBatteryLevel" -> battery.case
+        "batteryLevel" -> battery.left ?: battery.right
+        else -> null
+    }
+}
+
 @Composable
-private fun BatteryBar(settingId: String, percent: Int) {
+private fun FastPairBusyBanner(context: Context) {
+    Row(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .background(GlanceTheme.colors.secondaryContainer)
+            .cornerRadius(8.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            modifier = GlanceModifier.defaultWeight(),
+            text = "Approximate battery. Fast Pair is using the exact data.",
+            style = TextStyle(color = GlanceTheme.colors.onSecondaryContainer, fontSize = 12.sp),
+            maxLines = 2,
+        )
+        Spacer(GlanceModifier.width(4.dp))
+        Button(
+            text = "Fix",
+            onClick = actionStartActivity(
+                Intent(context, FastPairSettingsActivity::class.java).apply {
+                    setPackage(context.packageName)
+                },
+            ),
+        )
+    }
+}
+
+@Composable
+private fun BatteryBar(settingId: String, percent: Int, isExact: Boolean, isCharging: Boolean) {
     val barColor = when {
         percent <= 20 -> ColorProvider(Color(0xFFE5484D))
         percent <= 40 -> ColorProvider(Color(0xFFF5A524))
@@ -680,7 +749,7 @@ private fun BatteryBar(settingId: String, percent: Int) {
                 maxLines = 1,
             )
             Text(
-                text = "$percent%",
+                text = (if (isExact) "" else "≈") + "$percent%" + (if (isCharging) " ⚡" else ""),
                 style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold),
             )
         }
