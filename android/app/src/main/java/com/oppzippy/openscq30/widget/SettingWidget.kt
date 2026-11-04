@@ -409,17 +409,27 @@ private fun Connected(
     isCompactLayout: Boolean,
 ) {
     val showsBattery = settings.any { (id, setting) -> setting != null && id.contains("battery", ignoreCase = true) }
+    // Soundcore's own charging flags, keyed by the battery setting they belong to. They are drawn as a green dot on
+    // the battery icon instead of as separate rows.
+    val soundcoreCharging = settings.mapNotNull { (id, setting) ->
+        val batteryId = CHARGING_TO_BATTERY_SETTING[id] ?: return@mapNotNull null
+        val value = (setting as? Setting.InformationSetting)?.value ?: return@mapNotNull null
+        batteryId to (value.equals("yes", ignoreCase = true) || value.equals("true", ignoreCase = true))
+    }.toMap()
+    val visibleSettings = settings.filter { (id, setting) ->
+        setting != null && !(showsBattery && CHARGING_TO_BATTERY_SETTING.containsKey(id))
+    }
     LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
         if (showsBattery && fastPair is FastPairBatteryState.Busy) {
             item { FastPairBusyBanner(context) }
         }
-        items(settings.filter { it.second != null }) { (settingId, setting) ->
+        items(visibleSettings) { (settingId, setting) ->
             Box(
                 modifier = GlanceModifier.let {
                     if (!isCompactLayout) it.padding(bottom = 6.dp) else it
                 },
             ) {
-                ShowSetting(context, settingId, setting!!, fastPair, isCompactLayout)
+                ShowSetting(context, settingId, setting!!, fastPair, soundcoreCharging[settingId] ?: false, isCompactLayout)
             }
         }
     }
@@ -431,6 +441,7 @@ private fun ShowSetting(
     settingId: String,
     setting: Setting,
     fastPair: FastPairBatteryState,
+    soundcoreCharging: Boolean,
     isCompactLayout: Boolean,
 ) {
     when (setting) {
@@ -462,7 +473,7 @@ private fun ShowSetting(
             if (exact != null) {
                 BatteryBar(settingId, exact.percent, isExact = true, isCharging = exact.isCharging)
             } else if (batteryPercent != null) {
-                BatteryBar(settingId, batteryPercent, isExact = false, isCharging = false)
+                BatteryBar(settingId, batteryPercent, isExact = false, isCharging = soundcoreCharging)
             } else {
                 ReadOnlySettingValue(settingId, setting.value)
             }
@@ -733,6 +744,20 @@ private fun FastPairBusyBanner(context: Context) {
     }
 }
 
+private val CHARGING_TO_BATTERY_SETTING = mapOf(
+    "isChargingLeft" to "batteryLevelLeft",
+    "isChargingRight" to "batteryLevelRight",
+    "isCharging" to "batteryLevel",
+)
+
+private fun batteryIcon(settingId: String): Int? = when (settingId) {
+    "batteryLevelLeft" -> R.drawable.earbud_left_24px
+    "batteryLevelRight" -> R.drawable.earbud_right_24px
+    "caseBatteryLevel" -> R.drawable.earbud_case_24px
+    "batteryLevel" -> R.drawable.headphones_24px
+    else -> null
+}
+
 @Composable
 private fun BatteryBar(settingId: String, percent: Int, isExact: Boolean, isCharging: Boolean) {
     val barColor = when {
@@ -740,25 +765,58 @@ private fun BatteryBar(settingId: String, percent: Int, isExact: Boolean, isChar
         percent <= 40 -> ColorProvider(Color(0xFFF5A524))
         else -> GlanceTheme.colors.primary
     }
-    Column(GlanceModifier.fillMaxWidth().padding(end = 8.dp)) {
-        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val icon = batteryIcon(settingId)
+    Row(
+        GlanceModifier.fillMaxWidth().padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) {
+            // Icon with a green dot in the corner while charging
+            Box(GlanceModifier.size(28.dp), contentAlignment = Alignment.BottomEnd) {
+                Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Image(
+                        modifier = GlanceModifier.size(24.dp),
+                        provider = ImageProvider(icon),
+                        contentDescription = translateSettingId(settingId),
+                        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+                    )
+                }
+                if (isCharging) {
+                    Box(
+                        GlanceModifier
+                            .size(10.dp)
+                            .cornerRadius(5.dp)
+                            .background(GlanceTheme.colors.widgetBackground)
+                            .padding(1.5.dp),
+                    ) {
+                        Spacer(
+                            GlanceModifier
+                                .fillMaxSize()
+                                .cornerRadius(4.dp)
+                                .background(ColorProvider(Color(0xFF30A46C))),
+                        )
+                    }
+                }
+            }
+        } else {
             Text(
-                modifier = GlanceModifier.defaultWeight(),
                 text = translateSettingId(settingId),
                 style = defaultTextStyle(),
                 maxLines = 1,
             )
-            Text(
-                text = (if (isExact) "" else "≈") + "$percent%" + (if (isCharging) " ⚡" else ""),
-                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold),
-            )
         }
-        Spacer(GlanceModifier.height(4.dp))
+        Spacer(GlanceModifier.width(8.dp))
         LinearProgressIndicator(
             progress = percent / 100f,
-            modifier = GlanceModifier.fillMaxWidth().height(8.dp).cornerRadius(4.dp),
+            modifier = GlanceModifier.defaultWeight().height(8.dp).cornerRadius(4.dp),
             color = barColor,
             backgroundColor = GlanceTheme.colors.surfaceVariant,
+        )
+        Spacer(GlanceModifier.width(8.dp))
+        Text(
+            text = (if (isExact) "" else "\u2248") + "$percent%",
+            style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold),
+            maxLines = 1,
         )
     }
 }

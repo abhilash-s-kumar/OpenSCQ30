@@ -34,6 +34,14 @@ val gradleToCargoProfiles = mapOf(
 
 android {
     signingConfigs {
+        // Fixed debug key (fork only) so CI debug builds can be installed over each other.
+        // It's a throwaway debug key, deliberately committed; never use it for release builds.
+        getByName("debug") {
+            storeFile = file("fork-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (keystorePropertiesFile.exists()) {
             create("release") {
                 storeFile = file(keystoreProperties["storeFile"] as String)

@@ -32,8 +32,8 @@ class FastPairSettingsActivity : Activity() {
 
         Toast.makeText(
             applicationContext,
-            "To free exact battery %: Google > All services > Devices > turn off \"Scan for nearby devices\". " +
-                "Then reconnect your earbuds.",
+            "For exact battery %: Google > All services > Devices > Saved devices, remove these earbuds. " +
+                "Then forget and re-pair them in Bluetooth settings, and skip the Fast Pair popup.",
             Toast.LENGTH_LONG,
         ).show()
         finish()
