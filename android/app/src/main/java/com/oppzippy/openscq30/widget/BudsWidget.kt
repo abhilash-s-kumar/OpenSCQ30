@@ -172,7 +172,7 @@ class BudsWidget : GlanceAppWidget() {
         }
     }
 
-    private fun buildState(session: OpenScq30Session, connectionStatus: ConnectionStatus): BudsWidgetState =
+    private suspend fun buildState(session: OpenScq30Session, connectionStatus: ConnectionStatus): BudsWidgetState =
         when (connectionStatus) {
             ConnectionStatus.AwaitingConnection, ConnectionStatus.Disconnected ->
                 BudsWidgetState.Disconnected(session.pairedDevices())
@@ -280,8 +280,9 @@ private fun BudsContent(context: Context, state: BudsWidgetState) {
         Spacer(GlanceModifier.height(6.dp))
         // Bottom tile: sound mode toggle (or connect button)
         when (state) {
-            is BudsWidgetState.Connected -> SoundModeTile(context, state)
+            is BudsWidgetState.Connected -> SoundModeTile(GlanceModifier.defaultWeight(), context, state)
             is BudsWidgetState.Connecting -> Tile(
+                modifier = GlanceModifier.defaultWeight(),
                 icon = R.drawable.bluetooth_24px,
                 label = null,
                 background = GlanceTheme.colors.surface,
@@ -292,6 +293,7 @@ private fun BudsContent(context: Context, state: BudsWidgetState) {
             is BudsWidgetState.Disconnected -> {
                 val device = state.pairedDevices.firstOrNull()
                 Tile(
+                    modifier = GlanceModifier.defaultWeight(),
                     icon = R.drawable.bluetooth_24px,
                     label = if (device != null) "Connect" else null,
                     background = GlanceTheme.colors.surface,
@@ -375,12 +377,13 @@ private fun BatteryRow(icon: Int, battery: BudBattery) {
 }
 
 @Composable
-private fun SoundModeTile(context: Context, state: BudsWidgetState.Connected) {
+private fun SoundModeTile(modifier: GlanceModifier, context: Context, state: BudsWidgetState.Connected) {
     val options = state.soundModeOptions
     val current = state.soundMode
     if (options.isEmpty() || current == null) {
         // Device has no ambient sound mode (or it isn't available right now)
         Tile(
+            modifier = modifier,
             icon = R.drawable.headphones_24px,
             label = state.deviceName,
             background = GlanceTheme.colors.surface,
@@ -404,6 +407,7 @@ private fun SoundModeTile(context: Context, state: BudsWidgetState.Connected) {
         else -> Triple(R.drawable.sound_mode_off, GlanceTheme.colors.surface, GlanceTheme.colors.onSurface)
     }
     Tile(
+        modifier = modifier,
         icon = icon,
         label = label,
         background = background,
@@ -413,11 +417,17 @@ private fun SoundModeTile(context: Context, state: BudsWidgetState.Connected) {
 }
 
 @Composable
-private fun Tile(icon: Int, label: String?, background: ColorProvider, foreground: ColorProvider, action: Action?) {
+private fun Tile(
+    modifier: GlanceModifier,
+    icon: Int,
+    label: String?,
+    background: ColorProvider,
+    foreground: ColorProvider,
+    action: Action?,
+) {
     Box(
-        modifier = GlanceModifier
+        modifier = modifier
             .fillMaxWidth()
-            .defaultWeight()
             .background(background)
             .cornerRadius(16.dp)
             .let { if (action != null) it.clickable(action) else it },
