@@ -57,7 +57,10 @@ class AutoConnectService : LifecycleService() {
      */
     @SuppressLint("MissingPermission")
     private fun connectAlreadyConnectedDevices(excludeMacAddress: String? = null) {
-        if (!preferences.autoConnect) return
+        if (!preferences.autoConnect) {
+            Log.i(TAG, "handover: auto connect disabled")
+            return
+        }
         // A device shows up in both the A2DP and headset profile lists; only start one connection per device
         val requested = java.util.Collections.synchronizedSet(mutableSetOf<String>())
         val adapter = getSystemService(BluetoothManager::class.java)?.adapter ?: return
@@ -69,6 +72,7 @@ class AutoConnectService : LifecycleService() {
                     object : BluetoothProfile.ServiceListener {
                         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                             try {
+                                Log.i(TAG, "handover: profile $profile connected=${proxy.connectedDevices.map { it.address }} exclude=$excludeMacAddress")
                                 proxy.connectedDevices
                                     .filter { !it.address.equals(excludeMacAddress, ignoreCase = true) }
                                     .forEach { device ->
@@ -102,6 +106,7 @@ class AutoConnectService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         if (intent?.action == ACTION_RESCAN) {
             val exclude = intent.getStringExtra(EXTRA_EXCLUDE_MAC_ADDRESS)
+            Log.i(TAG, "handover: rescan requested, exclude=$exclude")
             lifecycleScope.launch {
                 delay(RESCAN_DELAY_MS)
                 connectAlreadyConnectedDevices(excludeMacAddress = exclude)

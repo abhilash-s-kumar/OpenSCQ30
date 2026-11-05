@@ -49,7 +49,9 @@ class BluetoothConnectionReceiver(
     /** Starts DeviceService for [macAddress] if it is a device the user paired with OpenSCQ30. */
     fun connectIfPaired(context: Context, macAddress: String) {
         coroutineScope.launch {
-            if (isPaired(context, macAddress)) {
+            val paired = isPaired(context, macAddress)
+            Log.i(TAG, "connectIfPaired: $macAddress paired=$paired")
+            if (paired) {
                 Log.d(TAG, "auto connecting to $macAddress")
                 val serviceIntent = Intent(context, DeviceService::class.java)
                 serviceIntent.putExtra(DeviceService.INTENT_EXTRA_MAC_ADDRESS, macAddress)
@@ -64,6 +66,7 @@ class BluetoothConnectionReceiver(
         val isAssociated = deviceManager.associations.find { it.equals(macAddress, ignoreCase = true) } != null
         val isPairedWithOpenSCQ30 =
             session.pairedDevices().find { it.macAddress.equals(macAddress, ignoreCase = true) } != null
+        Log.i(TAG, "isPaired $macAddress: companionAssociated=$isAssociated openscq30=$isPairedWithOpenSCQ30")
         return isAssociated && isPairedWithOpenSCQ30
     }
 }

@@ -62,6 +62,8 @@ class DeviceService : LifecycleService() {
         const val INTENT_EXTRA_AUTO_CONNECT = "com.oppzippy.openscq30.autoConnect"
         private const val AUTO_CONNECT_ATTEMPTS = 4
         private const val AUTO_CONNECT_RETRY_DELAY_MS = 2000L
+        private const val MANUAL_CONNECT_ATTEMPTS = 3
+        private const val MANUAL_CONNECT_RETRY_DELAY_MS = 1000L
 
         const val NOTIFICATION_CHANNEL_ID = "com.oppzippy.openscq30.notification.DeviceServiceChannel"
         const val NOTIFICATION_ID = 1
@@ -237,6 +239,7 @@ class DeviceService : LifecycleService() {
         val requestedMacAddress = intent?.getStringExtra(INTENT_EXTRA_MAC_ADDRESS)
         val currentStatus = connectionStatusFlow.value
         val isBusy = currentStatus is ConnectionStatus.Connecting || currentStatus is ConnectionStatus.Connected
+        Log.i(TAG, "start: mac=$requestedMacAddress auto=$isAutoConnect current=$currentStatus")
         if (isAutoConnect && isBusy) {
             // Never let an automatic connection replace the device that is already connected (or connecting).
             Log.i(TAG, "ignoring auto connect to $requestedMacAddress, already busy with $connectedMacAddress")
@@ -261,7 +264,11 @@ class DeviceService : LifecycleService() {
     private var deviceDropped = false
 
     private fun requestAutoConnectRescan(excludeMacAddress: String?) {
-        if (!com.oppzippy.openscq30.features.preferences.Preferences(applicationContext).autoConnect) return
+        if (!com.oppzippy.openscq30.features.preferences.Preferences(applicationContext).autoConnect) {
+            Log.i(TAG, "handover: auto connect is disabled, not rescanning")
+            return
+        }
+        Log.i(TAG, "handover: requesting rescan excluding $excludeMacAddress")
         try {
             startService(
                 Intent(applicationContext, AutoConnectService::class.java).apply {
@@ -283,7 +290,8 @@ class DeviceService : LifecycleService() {
         lifecycleScope.launch {
             // Right after the earbuds connect, their control channel often isn't ready yet, so automatic
             // connections retry a few times before giving up.
-            val attempts = if (isAutoConnect) AUTO_CONNECT_ATTEMPTS else 1
+            // Manual connections retry too: the first RFCOMM socket to a service often fails on Android.
+            val attempts = if (isAutoConnect) AUTO_CONNECT_ATTEMPTS else MANUAL_CONNECT_ATTEMPTS
             for (attempt in 1..attempts) {
                 try {
                     val device = session.connectWithBackends(
@@ -294,7 +302,9 @@ class DeviceService : LifecycleService() {
                     return@launch
                 } catch (ex: OpenScq30Exception) {
                     Log.w(TAG, "error connecting to device (attempt $attempt/$attempts)", ex)
-                    if (attempt < attempts) delay(AUTO_CONNECT_RETRY_DELAY_MS * attempt)
+                    if (attempt < attempts) {
+                        delay(if (isAutoConnect) AUTO_CONNECT_RETRY_DELAY_MS * attempt else MANUAL_CONNECT_RETRY_DELAY_MS)
+                    }
                 }
             }
             if (!isAutoConnect) {
@@ -323,6 +333,7 @@ class DeviceService : LifecycleService() {
         }
         lifecycleScope.launch {
             connectionStatusFlow.first { it == ConnectionStatus.Disconnected }
+            Log.i(TAG, "handover: disconnected, deviceDropped=$deviceDropped, mac=$connectedMacAddress")
             if (deviceDropped) {
                 // The earbuds went away on their own (not the user pressing back), so if another paired device is
                 // still connected, hand over to it. Its own connect event already fired while this one was active.
