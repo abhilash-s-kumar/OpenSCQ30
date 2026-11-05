@@ -25,6 +25,7 @@ import com.oppzippy.openscq30.lib.bindings.OpenScq30Exception
 import com.oppzippy.openscq30.lib.bindings.OpenScq30Session
 import com.oppzippy.openscq30.lib.bindings.SettingIdValuePair
 import com.oppzippy.openscq30.lib.wrapper.Value
+import com.oppzippy.openscq30.widget.BudsWidget
 import com.oppzippy.openscq30.widget.SettingWidget
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -63,6 +64,7 @@ class DeviceService : LifecycleService() {
         const val ACTION_SEND_NOTIFICATION = "com.oppzippy.openscq30.broadcast.SendNotification"
         const val ACTION_SET_SETTING_VALUE = "com.oppzippy.openscq30.broadcast.SetSettingValue"
         const val ACTION_UPDATE_WIDGET = "com.oppzippy.openscq30.broadcast.UPDATE_WIDGET"
+        const val EXTRA_BUDS_WIDGET_ONLY = "com.oppzippy.openscq30.budsWidgetOnly"
 
         private val ACTIONS = listOf(
             ACTION_DISCONNECT,
@@ -174,9 +176,15 @@ class DeviceService : LifecycleService() {
                 }
 
                 ACTION_UPDATE_WIDGET -> {
+                    // Earbuds widgets need no configuration, so refresh them all on any update request
+                    lifecycleScope.launch {
+                        BudsWidget().updateAll(applicationContext, session, connectionStatusFlow.value)
+                    }
                     val appWidgetId =
                         intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-                    if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    if (intent.getBooleanExtra(EXTRA_BUDS_WIDGET_ONLY, false)) {
+                        // nothing else to do
+                    } else if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                         val manager = GlanceAppWidgetManager(applicationContext)
                         val glanceId = manager.getGlanceIdBy(appWidgetId)
                         lifecycleScope.launch {
@@ -268,14 +276,17 @@ class DeviceService : LifecycleService() {
         }
         lifecycleScope.launch {
             val widget = SettingWidget()
+            val budsWidget = BudsWidget()
             connectionStatusFlow.collectLatest { connectionStatus ->
                 widget.updateAllConnectionStatus(applicationContext, session, connectionStatus)
+                budsWidget.updateAll(applicationContext, session, connectionStatus)
                 if (connectionStatus is ConnectionStatus.Connected) {
                     merge(
                         connectionStatus.deviceManager.watchForChangeNotification.map { },
                         FastPairBatteryReader.state.map { },
                     ).collectLatest {
                         widget.updateAllConnectionStatus(applicationContext, session, connectionStatus)
+                        budsWidget.updateAll(applicationContext, session, connectionStatus)
                     }
                 }
             }
@@ -307,6 +318,7 @@ class DeviceService : LifecycleService() {
         }
         MainScope().launch {
             SettingWidget().updateAllConnectionStatus(applicationContext, session, ConnectionStatus.Disconnected)
+            BudsWidget().updateAll(applicationContext, session, ConnectionStatus.Disconnected)
         }
         _isRunning.value = false
     }

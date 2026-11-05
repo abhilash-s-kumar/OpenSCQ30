@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <!-- Noise canceling: solid core inside a closed ring -->
+  <path android:fillColor="#00000000" android:strokeColor="@android:color/white" android:strokeWidth="70"
+      android:pathData="M180,480a300,300 0,1 0,600,0a300,300 0,1 0,-600,0Z"/>
+  <path android:fillColor="@android:color/white"
+      android:pathData="M330,480a150,150 0,1 0,300,0a150,150 0,1 0,-300,0Z"/>
+</vector>

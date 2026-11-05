@@ -19,6 +19,7 @@ import com.oppzippy.openscq30.lib.bindings.OpenScq30Session
 import com.oppzippy.openscq30.lib.wrapper.ConnectionDescriptor
 import com.oppzippy.openscq30.lib.wrapper.PairedDevice
 import com.oppzippy.openscq30.ui.utils.ToastHandler
+import com.oppzippy.openscq30.widget.BudsWidget
 import com.oppzippy.openscq30.widget.SettingWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -48,6 +49,7 @@ class DeviceSelectionViewModel @Inject constructor(
             // TODO instead make this a global event of some sort that can be subscribed to
             pairedDevices.collectLatest {
                 widget.updatePairedDevices(application, session.pairedDevices())
+                BudsWidget().updatePairedDevices(application, session.pairedDevices())
             }
         }
     }

@@ -117,4 +117,6 @@
     <string name="visible_settings">Visible Settings</string>
     <string name="appearance">Appearance</string>
     <string name="compact_layout">Compact Layout</string>
+    <string name="buds_widget_name">Earbuds</string>
+    <string name="buds_widget_description">Battery and noise canceling toggle</string>
 </resources>

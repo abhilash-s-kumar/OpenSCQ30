@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <!-- Transparency: small core inside a ring of dots (sound passes through) -->
+  <path android:fillColor="@android:color/white"
+      android:pathData="M742,480a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM702,630a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM592,740a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM442,780a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM292,740a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM182,630a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM142,480a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM182,330a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM292,220a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM442,180a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM592,220a38,38 0,1 0,76,0a38,38 0,1 0,-76,0ZM702,330a38,38 0,1 0,76,0a38,38 0,1 0,-76,0Z"/>
+  <path android:fillColor="@android:color/white"
+      android:pathData="M390,480a90,90 0,1 0,180,0a90,90 0,1 0,-180,0Z"/>
+</vector>
