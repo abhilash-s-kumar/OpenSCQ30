@@ -46,6 +46,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import com.oppzippy.openscq30.features.autoconnect.AutoConnectService
 import com.oppzippy.openscq30.features.fastpair.FastPairBatteryReader
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -255,6 +256,24 @@ class DeviceService : LifecycleService() {
     @Volatile
     private var collectorsStarted = false
 
+    /** True when the device disconnected by itself, as opposed to the user closing the connection. */
+    @Volatile
+    private var deviceDropped = false
+
+    private fun requestAutoConnectRescan(excludeMacAddress: String?) {
+        if (!com.oppzippy.openscq30.features.preferences.Preferences(applicationContext).autoConnect) return
+        try {
+            startService(
+                Intent(applicationContext, AutoConnectService::class.java).apply {
+                    action = AutoConnectService.ACTION_RESCAN
+                    putExtra(AutoConnectService.EXTRA_EXCLUDE_MAC_ADDRESS, excludeMacAddress)
+                },
+            )
+        } catch (ex: IllegalStateException) {
+            Log.w(TAG, "couldn't request auto connect rescan", ex)
+        }
+    }
+
     private fun connect(macAddress: String, isAutoConnect: Boolean) {
         connectedMacAddress = macAddress
         val previous = connectionStatusFlow.value as? ConnectionStatus.Connected
@@ -295,6 +314,7 @@ class DeviceService : LifecycleService() {
                             com.oppzippy.openscq30.lib.bindings.ConnectionStatus.Disconnected
                         ) {
                             Log.d(TAG, "device disconnected")
+                            deviceDropped = true
                             connectionStatusFlow.value = ConnectionStatus.Disconnected
                         }
                     }
@@ -303,6 +323,11 @@ class DeviceService : LifecycleService() {
         }
         lifecycleScope.launch {
             connectionStatusFlow.first { it == ConnectionStatus.Disconnected }
+            if (deviceDropped) {
+                // The earbuds went away on their own (not the user pressing back), so if another paired device is
+                // still connected, hand over to it. Its own connect event already fired while this one was active.
+                requestAutoConnectRescan(excludeMacAddress = connectedMacAddress)
+            }
             stopSelf()
         }
         lifecycleScope.launch {
