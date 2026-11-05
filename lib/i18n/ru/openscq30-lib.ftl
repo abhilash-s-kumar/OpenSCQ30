@@ -38,6 +38,7 @@ soundcore-d1202 = Soundcore P31i
 soundcore-d1202c = Soundcore R60i NC
 soundcore-d1301 = Soundcore Sleep A30
 soundcore-development = Отладочная информация Soundcore
+nothing-ear2 = Nothing Ear (2)
 
 general = Общие настройки
 sound-modes = Звуковые режимы

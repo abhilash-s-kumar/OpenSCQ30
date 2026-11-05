@@ -6,6 +6,7 @@ soundcore-a3936 = Soundcore Space A40
 soundcore-a3945 = Soundcore Life Note 3S
 soundcore-a3947 = Soundcore Liberty 4 NC
 soundcore-development = Soundcore Geliştirme Bilgisi
+nothing-ear2 = Nothing Ear (2)
 general = Genel
 sound-modes = Ses Modları
 device-information = Aygıt Bilgisi

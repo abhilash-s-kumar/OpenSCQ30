@@ -8,7 +8,7 @@ use strum::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr, VariantArray
 use crate::{
     api::device::{self, OpenSCQ30DeviceRegistry},
     connection_backend::ConnectionBackends,
-    devices::soundcore,
+    devices::{nothing, soundcore},
     storage::OpenSCQ30Database,
 };
 
@@ -72,6 +72,7 @@ pub enum DeviceModel {
     SoundcoreD1301,
     SoundcoreD1402,
     SoundcoreDevelopment,
+    NothingEar2,
 }
 
 impl DeviceModel {
@@ -136,6 +137,10 @@ impl DeviceModel {
             Self::SoundcoreD1301 => new_soundcore_device!(soundcore::d1301),
             Self::SoundcoreD1402 => new_soundcore_device!(soundcore::d1402),
             Self::SoundcoreDevelopment => new_soundcore_device!(soundcore::development),
+            Self::NothingEar2 => Ok(Arc::new(nothing::device_registry(
+                Arc::new(backends.rfcomm().await?),
+                *self,
+            ))),
         }
     }
 
@@ -195,6 +200,7 @@ impl DeviceModel {
             Self::SoundcoreD1301 => new_soundcore_device!(soundcore::d1301),
             Self::SoundcoreD1402 => new_soundcore_device!(soundcore::d1402),
             Self::SoundcoreDevelopment => new_soundcore_device!(soundcore::development),
+            Self::NothingEar2 => Ok(Arc::new(nothing::demo_device_registry(*self))),
         }
     }
 

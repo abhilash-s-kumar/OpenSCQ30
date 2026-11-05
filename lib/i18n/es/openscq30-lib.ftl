@@ -26,6 +26,7 @@ soundcore-a3959 = Soundcore P30i / R50i NC
 soundcore-a3955 = Soundcore P40i
 soundcore-a3957 = Soundcore Liberty 5
 soundcore-development = Información de desarrollo de Soundcore
+nothing-ear2 = Nothing Ear (2)
 general = General
 sound-modes = Modos de sonido
 equalizer-import-export = Importar/exportar ecualizador

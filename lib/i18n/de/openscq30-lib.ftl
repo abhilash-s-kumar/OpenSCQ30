@@ -116,6 +116,7 @@ soundcore-a3040 = Soundcore Space Q45
 soundcore-a3116 = Soundcore Motion+
 soundcore-a3947 = Soundcore Liberty 4 NC
 soundcore-development = Soundcore Entwicklungsinformation
+nothing-ear2 = Nothing Ear (2)
 equalizer-import-export = Equalizer Import/Export
 transport = Transport
 volume = Lautstärke

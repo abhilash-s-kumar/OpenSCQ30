@@ -43,6 +43,7 @@ spoken-word = 会話
 treble-booster = トレブルブースター
 treble-reducer = トレブルリデューサー
 soundcore-development = Soundcoreのデバイスの開発情報
+nothing-ear2 = Nothing Ear (2)
 sound-modes = サウンドモード
 equalizer-import-export = イコライザーをインポートとエクスポート
 ambient-sound-mode = 環境サウンドモード

@@ -1,3 +1,4 @@
+mod nothing;
 mod soundcore;
 
 mod device_model;

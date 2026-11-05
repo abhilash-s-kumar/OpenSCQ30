@@ -16,6 +16,7 @@ soundcore-a3062 = Soundcore Space One Pro
 soundcore-a3116 = Soundcore Motion+
 soundcore-a3876 = Soundcore V20i
 soundcore-development = Informasi Pengembangan Soundcore
+nothing-ear2 = Nothing Ear (2)
 general = Umum
 sound-modes = Mode Suara
 equalizer-import-export = Impor/Ekspor Equalizer

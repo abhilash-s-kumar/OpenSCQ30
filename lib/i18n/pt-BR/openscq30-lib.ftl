@@ -12,6 +12,7 @@ soundcore-a3031 = Soundcore Vortex
 soundcore-a3033 = Soundcore Life 2 Neo
 soundcore-a3035 = Soundcore Space One
 soundcore-development = Informação de Desenvolvimento Soundcore
+nothing-ear2 = Nothing Ear (2)
 general = Geral
 sound-modes = Modo de Som
 equalizer-import-export = Importar/Exportar Equalizador

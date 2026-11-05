@@ -27,6 +27,7 @@ soundcore-a3935 = Soundcore Life A2 NC
 soundcore-a3959 = Soundcore P30i / R50i NC
 soundcore-a3955 = Soundcore P40i
 soundcore-development = מידע פיתוח Soundcore
+nothing-ear2 = Nothing Ear (2)
 none = ללא
 general = כללי
 miscellaneous = שונות

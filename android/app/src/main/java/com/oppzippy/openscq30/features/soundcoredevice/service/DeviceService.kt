@@ -296,7 +296,11 @@ class DeviceService : LifecycleService() {
         lifecycleScope.launch {
             connectionStatusFlow.collectLatest { connectionStatus ->
                 val macAddress = connectedMacAddress
-                if (connectionStatus is ConnectionStatus.Connected && macAddress != null) {
+                // Only Soundcore devices need this: others (e.g. Nothing) report exact battery over their own protocol,
+                // so there's no reason to compete with Play Services for the Fast Pair channel.
+                val needsFastPair = connectionStatus is ConnectionStatus.Connected &&
+                    connectionStatus.deviceManager.device.model().startsWith("Soundcore")
+                if (needsFastPair && macAddress != null) {
                     FastPairBatteryReader.run(applicationContext, macAddress)
                 }
             }
