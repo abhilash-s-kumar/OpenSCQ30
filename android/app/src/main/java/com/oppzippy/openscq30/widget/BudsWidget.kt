@@ -361,7 +361,7 @@ private fun BatteryRow(icon: Int, battery: BudBattery) {
         )
         Spacer(GlanceModifier.width(6.dp))
         Text(
-            text = (if (battery.isExact) "" else "≈") + "${battery.percent}",
+            text = "${battery.percent}",
             style = TextStyle(
                 color = GlanceTheme.colors.onSurface,
                 fontSize = 12.sp,

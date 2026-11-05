@@ -420,9 +420,6 @@ private fun Connected(
         setting != null && !(showsBattery && CHARGING_TO_BATTERY_SETTING.containsKey(id))
     }
     LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
-        if (showsBattery && fastPair is FastPairBatteryState.Busy) {
-            item { FastPairBusyBanner(context) }
-        }
         items(visibleSettings) { (settingId, setting) ->
             Box(
                 modifier = GlanceModifier.let {
@@ -431,6 +428,10 @@ private fun Connected(
             ) {
                 ShowSetting(context, settingId, setting!!, fastPair, soundcoreCharging[settingId] ?: false, isCompactLayout)
             }
+        }
+        // Shown last so it doesn't push the settings down
+        if (showsBattery && fastPair is FastPairBatteryState.Busy) {
+            item { FastPairBusyBanner(context) }
         }
     }
 }
@@ -720,7 +721,7 @@ private fun FastPairBusyBanner(context: Context) {
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp)
+            .padding(top = 2.dp)
             .background(GlanceTheme.colors.secondaryContainer)
             .cornerRadius(8.dp)
             .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -814,7 +815,7 @@ private fun BatteryBar(settingId: String, percent: Int, isExact: Boolean, isChar
         )
         Spacer(GlanceModifier.width(8.dp))
         Text(
-            text = (if (isExact) "" else "\u2248") + "$percent%",
+            text = "$percent%",
             style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold),
             maxLines = 1,
         )
