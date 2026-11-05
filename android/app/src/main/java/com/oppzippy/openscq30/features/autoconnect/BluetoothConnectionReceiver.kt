@@ -53,6 +53,7 @@ class BluetoothConnectionReceiver(
                 Log.d(TAG, "auto connecting to $macAddress")
                 val serviceIntent = Intent(context, DeviceService::class.java)
                 serviceIntent.putExtra(DeviceService.INTENT_EXTRA_MAC_ADDRESS, macAddress)
+                serviceIntent.putExtra(DeviceService.INTENT_EXTRA_AUTO_CONNECT, true)
                 context.startForegroundService(serviceIntent)
             }
         }

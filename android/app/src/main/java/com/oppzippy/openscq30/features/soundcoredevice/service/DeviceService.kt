@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -55,6 +56,11 @@ class DeviceService : LifecycleService() {
 
         /** Intent extra for setting mac address when launching service */
         const val INTENT_EXTRA_MAC_ADDRESS = "com.oppzippy.openscq30.macAddress"
+
+        /** Set by auto connect. Auto connections never replace an existing connection, and retry on failure. */
+        const val INTENT_EXTRA_AUTO_CONNECT = "com.oppzippy.openscq30.autoConnect"
+        private const val AUTO_CONNECT_ATTEMPTS = 4
+        private const val AUTO_CONNECT_RETRY_DELAY_MS = 2000L
 
         const val NOTIFICATION_CHANNEL_ID = "com.oppzippy.openscq30.notification.DeviceServiceChannel"
         const val NOTIFICATION_ID = 1
@@ -226,26 +232,60 @@ class DeviceService : LifecycleService() {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
 
-        intent?.getStringExtra(INTENT_EXTRA_MAC_ADDRESS)?.let { macAddress ->
-            connectedMacAddress = macAddress
-            lifecycleScope.launch {
+        val isAutoConnect = intent?.getBooleanExtra(INTENT_EXTRA_AUTO_CONNECT, false) ?: false
+        val requestedMacAddress = intent?.getStringExtra(INTENT_EXTRA_MAC_ADDRESS)
+        val currentStatus = connectionStatusFlow.value
+        val isBusy = currentStatus is ConnectionStatus.Connecting || currentStatus is ConnectionStatus.Connected
+        if (isAutoConnect && isBusy) {
+            // Never let an automatic connection replace the device that is already connected (or connecting).
+            Log.i(TAG, "ignoring auto connect to $requestedMacAddress, already busy with $connectedMacAddress")
+        } else {
+            requestedMacAddress?.let { macAddress -> connect(macAddress, isAutoConnect) }
+        }
+
+        // Only register these once, even if the service is started multiple times
+        if (!collectorsStarted) {
+            collectorsStarted = true
+            startCollectors()
+        }
+
+        return START_REDELIVER_INTENT
+    }
+
+    @Volatile
+    private var collectorsStarted = false
+
+    private fun connect(macAddress: String, isAutoConnect: Boolean) {
+        connectedMacAddress = macAddress
+        val previous = connectionStatusFlow.value as? ConnectionStatus.Connected
+        // Switch state first so the disconnect watcher stops watching the old device before it is closed
+        connectionStatusFlow.value = ConnectionStatus.Connecting(macAddress)
+        previous?.deviceManager?.close()
+        lifecycleScope.launch {
+            // Right after the earbuds connect, their control channel often isn't ready yet, so automatic
+            // connections retry a few times before giving up.
+            val attempts = if (isAutoConnect) AUTO_CONNECT_ATTEMPTS else 1
+            for (attempt in 1..attempts) {
                 try {
                     val device = session.connectWithBackends(
                         connectionBackends(applicationContext, lifecycleScope),
                         macAddress,
                     )
                     connectionStatusFlow.value = ConnectionStatus.Connected(DeviceConnectionManager(device))
+                    return@launch
                 } catch (ex: OpenScq30Exception) {
-                    Log.w(TAG, "error connecting to device", ex)
-                    Toast.makeText(applicationContext, R.string.error_connecting, Toast.LENGTH_SHORT).show()
-                    connectionStatusFlow.value = ConnectionStatus.Disconnected
+                    Log.w(TAG, "error connecting to device (attempt $attempt/$attempts)", ex)
+                    if (attempt < attempts) delay(AUTO_CONNECT_RETRY_DELAY_MS * attempt)
                 }
             }
-            connectionStatusFlow.compareAndSet(
-                ConnectionStatus.AwaitingConnection,
-                ConnectionStatus.Connecting(macAddress),
-            )
+            if (!isAutoConnect) {
+                Toast.makeText(applicationContext, R.string.error_connecting, Toast.LENGTH_SHORT).show()
+            }
+            connectionStatusFlow.value = ConnectionStatus.Disconnected
         }
+    }
+
+    private fun startCollectors() {
         // when we are connected to a device that becomes disconnected, update our connection status to disconnected
         lifecycleScope.launch {
             connectionStatusFlow.collectLatest { connectionStatus ->
@@ -305,8 +345,6 @@ class DeviceService : LifecycleService() {
                 }
             }
         }
-
-        return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
