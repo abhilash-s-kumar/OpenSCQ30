@@ -37,11 +37,15 @@ jobs:
         run: |
           apk="$(find android/app/build/outputs/apk -name '*.apk' | head -n 1)"
           cp "$apk" openscq30-debug-arm64-v8a.apk
-          gh release delete latest-debug --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
-          gh release create latest-debug openscq30-debug-arm64-v8a.apk \
-            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-            --title "Debug build ($GITHUB_RUN_NUMBER)" \
-            --notes "Debug build of ${GITHUB_SHA::7} from the battery-percent-widget branch. Installs alongside the regular app."
+          notes="Debug build of ${GITHUB_SHA::7} from the battery-percent-widget branch. Installs alongside the regular app."
+          # Replace the asset in place instead of deleting the release, so the download link never breaks mid-build
+          if gh release view latest-debug -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload latest-debug openscq30-debug-arm64-v8a.apk --clobber -R "$GITHUB_REPOSITORY"
+            gh release edit latest-debug -R "$GITHUB_REPOSITORY" --title "Debug build ($GITHUB_RUN_NUMBER)" --notes "$notes"
+          else
+            gh release create latest-debug openscq30-debug-arm64-v8a.apk -R "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --prerelease --title "Debug build ($GITHUB_RUN_NUMBER)" --notes "$notes"
+          fi
 
       - name: Fast Pair parser unit tests
         working-directory: android
