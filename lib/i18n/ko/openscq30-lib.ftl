@@ -34,6 +34,8 @@ soundcore-d1202 = Soundcore P31i
 soundcore-d1202c = Soundcore R60i NC
 soundcore-development = Soundcore 개발 정보
 nothing-ear2 = Nothing Ear (2)
+nothing-cmf-buds-pro = CMF Buds Pro (experimental)
+nothing-cmf-buds-pro2 = CMF Buds Pro 2
 
 general = 일반
 sound-modes = 사운드 모드

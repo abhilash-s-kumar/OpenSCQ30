@@ -41,6 +41,8 @@ soundcore-d1301 = Soundcore Sleep A30
 soundcore-d1402 = Soundcore Space 2
 soundcore-development = Soundcore Development Information
 nothing-ear2 = Nothing Ear (2)
+nothing-cmf-buds-pro = CMF Buds Pro (experimental)
+nothing-cmf-buds-pro2 = CMF Buds Pro 2
 
 general = General
 sound-modes = Sound Modes

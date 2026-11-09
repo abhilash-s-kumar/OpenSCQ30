@@ -39,6 +39,8 @@ soundcore-d1202c = Soundcore R60i NC
 soundcore-d1301 = Soundcore Sleep A30
 soundcore-development = Отладочная информация Soundcore
 nothing-ear2 = Nothing Ear (2)
+nothing-cmf-buds-pro = CMF Buds Pro (experimental)
+nothing-cmf-buds-pro2 = CMF Buds Pro 2
 
 general = Общие настройки
 sound-modes = Звуковые режимы
